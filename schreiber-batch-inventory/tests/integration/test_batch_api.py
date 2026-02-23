@@ -1,13 +1,17 @@
 """Integration tests for batch API endpoints."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 
 
+# Generate test data with current timestamp to avoid expiry issues
+_test_received = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+_test_date_code = datetime.now(timezone.utc).strftime("%Y%m%d")
+
 VALID_BATCH_DATA = {
-    "batch_code": "SCH-20251204-0001",
-    "received_at": "2025-12-04T08:30:00Z",
+    "batch_code": f"SCH-{_test_date_code}-0001",
+    "received_at": _test_received,
     "shelf_life_days": 7,
     "volume_liters": 1000.0,
     "fat_percent": 3.5,
@@ -30,7 +34,7 @@ class TestCreateBatch:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["batch_code"] == "SCH-20251204-0001"
+        assert data["batch_code"] == VALID_BATCH_DATA["batch_code"]
         assert data["available_liters"] == 1000.0
         assert data["version"] == 1
         assert "id" in data
@@ -123,7 +127,7 @@ class TestGetBatch:
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == created["id"]
-        assert data["batch_code"] == "SCH-20251204-0001"
+        assert data["batch_code"] == VALID_BATCH_DATA["batch_code"]
 
     def test_get_batch_not_found(self, client: TestClient):
         """Non-existent batch should return 404."""
@@ -240,7 +244,9 @@ class TestNearExpiry:
     def test_near_expiry_returns_batches_within_window(self, client: TestClient):
         """Only batches expiring within n_days should be returned."""
         # Batch expiring in 2 days (received 5 days ago, 7-day shelf life)
-        received_soon = (datetime.utcnow() - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        received_soon = (datetime.now(timezone.utc) - timedelta(days=5)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
         create_batch(
             client,
             {
@@ -253,7 +259,7 @@ class TestNearExpiry:
         )
 
         # Batch expiring in 10 days (received today, 10-day shelf life)
-        received_later = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        received_later = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         create_batch(
             client,
             {

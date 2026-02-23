@@ -1,8 +1,8 @@
 """Pydantic schemas for batch API requests and responses."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 
 class BatchCreateRequest(BaseModel):
@@ -13,7 +13,7 @@ class BatchCreateRequest(BaseModel):
         description="Batch code (format: SCH-YYYYMMDD-XXXX)",
         examples=["SCH-20251204-0001"],
     )
-    received_at: datetime = Field(
+    received_at: AwareDatetime = Field(
         description="Receipt timestamp",
     )
     shelf_life_days: int = Field(
@@ -38,18 +38,26 @@ class BatchResponse(BaseModel):
 
     id: int
     batch_code: str
-    received_at: datetime
+    received_at: AwareDatetime
     shelf_life_days: int
-    expiry_date: datetime
+    expiry_date: AwareDatetime
     volume_liters: float
     available_liters: float
     fat_percent: float
     version: int
     is_expired: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
     model_config = {"from_attributes": True}
+
+    @field_validator("received_at", "expiry_date", "created_at", "updated_at", mode="before")
+    @classmethod
+    def ensure_timezone_aware(cls, value: datetime) -> datetime:
+        """Ensure datetime has timezone info, defaulting to UTC if naive."""
+        if value and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
 
 
 class ConsumeRequest(BaseModel):
@@ -73,7 +81,15 @@ class ConsumeResponse(BaseModel):
     qty_consumed: float
     available_liters: float
     order_id: str | None
-    consumed_at: datetime
+    consumed_at: AwareDatetime
+
+    @field_validator("consumed_at", mode="before")
+    @classmethod
+    def ensure_timezone_aware(cls, value: datetime) -> datetime:
+        """Ensure datetime has timezone info, defaulting to UTC if naive."""
+        if value and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
 
 
 class BatchListResponse(BaseModel):
