@@ -8,7 +8,7 @@ by default in CI unless POSTGRES_TEST_URL is set.
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -25,6 +25,8 @@ def pg_session_fixture():
     """Create a PostgreSQL session for concurrency testing."""
     from sqlmodel import Session, SQLModel, create_engine
 
+    # POSTGRES_TEST_URL is guaranteed to be str here due to skipif marker
+    assert POSTGRES_TEST_URL is not None, "TEST_DATABASE_URL must be set"
     engine = create_engine(POSTGRES_TEST_URL)
     SQLModel.metadata.create_all(engine)
 
@@ -66,7 +68,7 @@ def test_concurrent_consumption_prevents_overuse(pg_client):
         "/api/batches/",
         json={
             "batch_code": "SCH-20251204-0001",
-            "received_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "received_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "shelf_life_days": 7,
             "volume_liters": 100.0,
             "fat_percent": 3.5,
@@ -116,7 +118,7 @@ def test_no_lost_updates(pg_client):
         "/api/batches/",
         json={
             "batch_code": "SCH-20251204-0002",
-            "received_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "received_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "shelf_life_days": 7,
             "volume_liters": 1000.0,
             "fat_percent": 3.5,

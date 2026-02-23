@@ -1,6 +1,6 @@
 """Unit tests for domain logic."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -113,10 +113,10 @@ class TestBatchExpiry:
 
     def test_not_expired_future_date(self):
         """Batch with future expiry date should not be expired."""
-        future = datetime.utcnow() + timedelta(days=7)
+        future = datetime.now(timezone.utc) + timedelta(days=7)
         batch = Batch(
             batch_code="SCH-20251204-0001",
-            received_at=datetime.utcnow(),
+            received_at=datetime.now(timezone.utc),
             shelf_life_days=7,
             expiry_date=future,
             volume_liters=1000.0,
@@ -126,10 +126,10 @@ class TestBatchExpiry:
 
     def test_expired_past_date(self):
         """Batch with past expiry date should be expired."""
-        past = datetime.utcnow() - timedelta(days=1)
+        past = datetime.now(timezone.utc) - timedelta(days=1)
         batch = Batch(
             batch_code="SCH-20251204-0001",
-            received_at=datetime.utcnow() - timedelta(days=8),
+            received_at=datetime.now(timezone.utc) - timedelta(days=8),
             shelf_life_days=7,
             expiry_date=past,
             volume_liters=1000.0,
@@ -145,9 +145,9 @@ class TestBatchSoftDelete:
         """Batch with no deleted_at should not be deleted."""
         batch = Batch(
             batch_code="SCH-20251204-0001",
-            received_at=datetime.utcnow(),
+            received_at=datetime.now(timezone.utc),
             shelf_life_days=7,
-            expiry_date=datetime.utcnow() + timedelta(days=7),
+            expiry_date=datetime.now(timezone.utc) + timedelta(days=7),
             volume_liters=1000.0,
             fat_percent=3.5,
             deleted_at=None,
@@ -158,12 +158,12 @@ class TestBatchSoftDelete:
         """Batch with deleted_at timestamp should be deleted."""
         batch = Batch(
             batch_code="SCH-20251204-0001",
-            received_at=datetime.utcnow(),
+            received_at=datetime.now(timezone.utc),
             shelf_life_days=7,
-            expiry_date=datetime.utcnow() + timedelta(days=7),
+            expiry_date=datetime.now(timezone.utc) + timedelta(days=7),
             volume_liters=1000.0,
             fat_percent=3.5,
-            deleted_at=datetime.utcnow(),
+            deleted_at=datetime.now(timezone.utc),
         )
         assert batch.is_deleted is True
 

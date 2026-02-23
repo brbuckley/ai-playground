@@ -11,7 +11,7 @@ Prerequisites:
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 
@@ -20,14 +20,14 @@ BASE_URL = "http://localhost:8000/api"
 
 def create_test_batch(volume: float = 100.0) -> dict:
     """Create a test batch for simulation."""
-    timestamp = datetime.utcnow().strftime("%Y%m%d")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d")
     batch_code = f"SCH-{timestamp}-{int(time.time()) % 9999:04d}"
 
     response = httpx.post(
         f"{BASE_URL}/batches/",
         json={
             "batch_code": batch_code,
-            "received_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "received_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "shelf_life_days": 7,
             "volume_liters": volume,
             "fat_percent": 3.5,

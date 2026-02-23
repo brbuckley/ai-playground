@@ -104,7 +104,11 @@ class Batch(SQLModel, table=True):
     @property
     def is_expired(self) -> bool:
         """Check if batch has passed expiry date."""
-        return datetime.now(timezone.utc) > self.expiry_date
+        # Ensure expiry_date is timezone-aware for comparison
+        expiry = self.expiry_date
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) > expiry
 
     @property
     def is_deleted(self) -> bool:
