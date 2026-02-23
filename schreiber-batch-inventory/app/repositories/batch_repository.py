@@ -1,6 +1,6 @@
 """Data access layer for Batch operations."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 
 from sqlmodel import Session, select
@@ -99,7 +99,7 @@ class BatchRepository:
         Returns:
             List of batches expiring within n_days, sorted by expiry_date
         """
-        threshold = datetime.utcnow() + timedelta(days=n_days)
+        threshold = datetime.now(timezone.utc) + timedelta(days=n_days)
 
         statement = (
             select(Batch)
@@ -174,7 +174,7 @@ class BatchRepository:
 
         # Update batch metadata
         batch.version += 1
-        batch.updated_at = datetime.utcnow()
+        batch.updated_at = datetime.now(timezone.utc)
 
         # Commit transaction (releases lock)
         self.session.commit()
@@ -201,8 +201,8 @@ class BatchRepository:
         if batch.is_deleted:
             raise BatchDeletedError(batch_id=batch_id)
 
-        batch.deleted_at = datetime.utcnow()
-        batch.updated_at = datetime.utcnow()
+        batch.deleted_at = datetime.now(timezone.utc)
+        batch.updated_at = datetime.now(timezone.utc)
 
         self.session.commit()
         self.session.refresh(batch)

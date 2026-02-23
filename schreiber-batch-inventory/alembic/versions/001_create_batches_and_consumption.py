@@ -57,15 +57,9 @@ def upgrade() -> None:
     )
 
     # Create indexes on consumption_records
-    op.create_index(
-        "ix_consumption_records_batch_id", "consumption_records", ["batch_id"]
-    )
-    op.create_index(
-        "ix_consumption_records_order_id", "consumption_records", ["order_id"]
-    )
-    op.create_index(
-        "ix_consumption_records_consumed_at", "consumption_records", ["consumed_at"]
-    )
+    op.create_index("ix_consumption_records_batch_id", "consumption_records", ["batch_id"])
+    op.create_index("ix_consumption_records_order_id", "consumption_records", ["order_id"])
+    op.create_index("ix_consumption_records_consumed_at", "consumption_records", ["consumed_at"])
 
 
 def downgrade() -> None:

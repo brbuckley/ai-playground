@@ -8,7 +8,7 @@ by default in CI unless POSTGRES_TEST_URL is set.
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import pytest
 
