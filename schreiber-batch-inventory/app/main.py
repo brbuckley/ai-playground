@@ -28,7 +28,7 @@ app = FastAPI(
 )
 
 # Attach correlation ID middleware (must be added before routes)
-app.add_middleware(CorrelationIdMiddleware)
+app.add_middleware(CorrelationIdMiddleware)  # type: ignore[invalid-argument-type]
 
 app.include_router(api_v1_router)
 
