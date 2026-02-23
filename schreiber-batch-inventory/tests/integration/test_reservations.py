@@ -213,9 +213,7 @@ class TestReleaseReservation:
         )
         reservation_id = create_resp.json()["id"]
 
-        response = client.delete(
-            f"/api/batches/{batch['id']}/reservations/{reservation_id}"
-        )
+        response = client.delete(f"/api/batches/{batch['id']}/reservations/{reservation_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -262,9 +260,7 @@ class TestReleaseReservation:
         client.delete(f"/api/batches/{batch['id']}/reservations/{reservation_id}")
 
         # Second release should fail
-        response = client.delete(
-            f"/api/batches/{batch['id']}/reservations/{reservation_id}"
-        )
+        response = client.delete(f"/api/batches/{batch['id']}/reservations/{reservation_id}")
         assert response.status_code == 409
         assert "already been released" in response.json()["detail"]
 

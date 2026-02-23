@@ -22,8 +22,7 @@ class BatchCode:
     def __post_init__(self) -> None:
         if not _BATCH_CODE_PATTERN.match(self.value):
             raise ValueError(
-                f"Invalid batch code format: '{self.value}'. "
-                "Expected format: SCH-YYYYMMDD-XXXX",
+                f"Invalid batch code format: '{self.value}'. Expected format: SCH-YYYYMMDD-XXXX",
             )
 
     def __str__(self) -> str:

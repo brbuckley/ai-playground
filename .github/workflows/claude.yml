@@ -30,6 +30,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1
@@ -39,4 +47,7 @@ jobs:
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
+
+          # Allow Claude to run QA tools (uv, ruff, ty, pytest, docker compose)
+          claude_args: '--allowed-tools Bash(uv:*,ruff:*,ty:*,pytest:*,docker:*,gh:*)'
 
