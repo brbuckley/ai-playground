@@ -51,3 +51,19 @@ class DuplicateBatchCodeError(BatchInventoryError):
     def __init__(self, batch_code: str):
         self.batch_code = batch_code
         super().__init__(f"Batch code '{batch_code}' already exists")
+
+
+class ReservationNotFoundError(BatchInventoryError):
+    """Raised when a reservation cannot be found."""
+
+    def __init__(self, reservation_id: int):
+        self.reservation_id = reservation_id
+        super().__init__(f"Reservation with ID {reservation_id} not found")
+
+
+class ReservationAlreadyReleasedError(BatchInventoryError):
+    """Raised when attempting to release an already-released reservation."""
+
+    def __init__(self, reservation_id: int):
+        self.reservation_id = reservation_id
+        super().__init__(f"Reservation {reservation_id} has already been released")

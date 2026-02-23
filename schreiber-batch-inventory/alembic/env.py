@@ -9,7 +9,7 @@ from sqlmodel import SQLModel
 from alembic import context
 
 # Import models to register them with SQLModel metadata
-from app.domain.models import Batch, ConsumptionRecord  # noqa: F401
+from app.domain.models import Batch, BatchReservation, ConsumptionRecord  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

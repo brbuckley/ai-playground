@@ -43,6 +43,8 @@ class BatchResponse(BaseModel):
     expiry_date: AwareDatetime
     volume_liters: float
     available_liters: float
+    reserved_liters: float
+    free_liters: float
     fat_percent: float
     version: int
     is_expired: bool
