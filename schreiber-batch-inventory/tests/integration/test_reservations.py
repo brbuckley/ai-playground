@@ -92,7 +92,11 @@ class TestCreateReservation:
         """Reserving more than free volume should return 409."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R002", "volume_liters": 100.0},
+            {
+                **VALID_BATCH_DATA,
+                "batch_code": f"SCH-{_test_date_code}-R002",
+                "volume_liters": 100.0,
+            },
         )
         response = client.post(
             f"/api/batches/{batch['id']}/reserve",

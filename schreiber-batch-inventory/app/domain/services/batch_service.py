@@ -5,6 +5,7 @@ from typing import List
 
 from sqlmodel import Session
 
+from app.domain.exceptions import ReservationNotFoundError
 from app.domain.models import Batch, BatchReservation, ConsumptionRecord
 from app.repositories.batch_repository import BatchRepository
 
@@ -105,5 +106,8 @@ class BatchService:
         """Release an active reservation."""
         # Ensure the batch exists
         self.repository.get_by_id(batch_id)
-        reservation = self.repository.release_reservation(reservation_id=reservation_id)
-        return reservation
+        # Verify the reservation actually belongs to this batch
+        reservation = self.repository.get_reservation_by_id(reservation_id)
+        if reservation.batch_id != batch_id:
+            raise ReservationNotFoundError(reservation_id=reservation_id)
+        return self.repository.release_reservation(reservation_id=reservation_id)
