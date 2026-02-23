@@ -15,6 +15,7 @@ Run:
 from __future__ import annotations
 
 import os
+import random
 from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -27,6 +28,9 @@ BASE_URL = os.getenv("E2E_BASE_URL", "http://localhost:8000")
 # Fixed seed date used to generate unique batch codes across all scenarios.
 SEED_DATE = "20260223"
 
+# Random 3-digit prefix to ensure batch codes are unique across test runs
+_random_prefix = random.randint(100, 999)
+
 _now = datetime.now(timezone.utc)
 
 # ---------------------------------------------------------------------------
@@ -36,7 +40,7 @@ _now = datetime.now(timezone.utc)
 BATCH_SEEDS: list[dict[str, Any]] = [
     {
         # Received 10 days ago with 7-day shelf life → expired 3 days ago
-        "batch_code": f"SCH-{SEED_DATE}-1001",
+        "batch_code": f"SCH-{SEED_DATE}-{_random_prefix}1",
         "received_at": (_now - timedelta(days=10)).isoformat(),
         "shelf_life_days": 7,
         "volume_liters": 500.0,
@@ -45,7 +49,7 @@ BATCH_SEEDS: list[dict[str, Any]] = [
     },
     {
         # Received 1 day ago with 5-day shelf life → expires in 4 days (active)
-        "batch_code": f"SCH-{SEED_DATE}-1002",
+        "batch_code": f"SCH-{SEED_DATE}-{_random_prefix}2",
         "received_at": (_now - timedelta(days=1)).isoformat(),
         "shelf_life_days": 5,
         "volume_liters": 800.0,
@@ -54,7 +58,7 @@ BATCH_SEEDS: list[dict[str, Any]] = [
     },
     {
         # Received now with 30-day shelf life → active; used for single-consumption test
-        "batch_code": f"SCH-{SEED_DATE}-1003",
+        "batch_code": f"SCH-{SEED_DATE}-{_random_prefix}3",
         "received_at": _now.isoformat(),
         "shelf_life_days": 30,
         "volume_liters": 1200.0,
@@ -63,7 +67,7 @@ BATCH_SEEDS: list[dict[str, Any]] = [
     },
     {
         # Received 6 h ago with 14-day shelf life → active; used for cumulative-consumption test
-        "batch_code": f"SCH-{SEED_DATE}-1004",
+        "batch_code": f"SCH-{SEED_DATE}-{_random_prefix}4",
         "received_at": (_now - timedelta(hours=6)).isoformat(),
         "shelf_life_days": 14,
         "volume_liters": 600.0,
@@ -72,7 +76,7 @@ BATCH_SEEDS: list[dict[str, Any]] = [
     },
     {
         # Received 3 h ago with 28-day shelf life → active; used for order-id test
-        "batch_code": f"SCH-{SEED_DATE}-1005",
+        "batch_code": f"SCH-{SEED_DATE}-{_random_prefix}5",
         "received_at": (_now - timedelta(hours=3)).isoformat(),
         "shelf_life_days": 28,
         "volume_liters": 1000.0,
@@ -90,8 +94,8 @@ def _api_payload(seed: dict[str, Any]) -> dict[str, Any]:
 
 
 def _find(batches: list[dict[str, Any]], suffix: str) -> dict[str, Any]:
-    """Locate a created batch by its 4-digit numeric suffix, e.g. ``'1003'``."""
-    code = f"SCH-{SEED_DATE}-{suffix}"
+    """Locate a created batch by its single-digit suffix, e.g. ``'1'`` through ``'5'``."""
+    code = f"SCH-{SEED_DATE}-{_random_prefix}{suffix}"
     return next(b for b in batches if b["batch_code"] == code)
 
 
@@ -209,7 +213,7 @@ class TestPaginatedListing:
         assert resp.status_code == 200
         listed = {b["batch_code"]: b for b in resp.json()["batches"]}
 
-        expired_code = f"SCH-{SEED_DATE}-1001"
+        expired_code = f"SCH-{SEED_DATE}-{_random_prefix}1"
         assert expired_code in listed, "Expired batch must still appear in the listing"
         assert listed[expired_code]["is_expired"] is True
 
@@ -220,7 +224,7 @@ class TestPaginatedListing:
         assert resp.status_code == 200
         listed = {b["batch_code"]: b for b in resp.json()["batches"]}
 
-        active_codes = [f"SCH-{SEED_DATE}-100{n}" for n in range(2, 6)]
+        active_codes = [f"SCH-{SEED_DATE}-{_random_prefix}{n}" for n in range(2, 6)]
         for code in active_codes:
             if code in listed:
                 assert listed[code]["is_expired"] is False, f"{code} should not be marked expired"
@@ -229,7 +233,7 @@ class TestPaginatedListing:
         self, http: httpx.Client, created_batches: list[dict[str, Any]]
     ) -> None:
         """The API must reject consumption from an expired batch with HTTP 409."""
-        expired = _find(created_batches, "1001")
+        expired = _find(created_batches, "1")
         resp = http.post(
             f"/api/batches/{expired['id']}/consume",
             json={"qty": 10.0, "order_id": "SHOULD-FAIL"},
@@ -249,7 +253,7 @@ class TestConsumption:
     def test_single_consumption_reduces_available_liters(
         self, http: httpx.Client, created_batches: list[dict[str, Any]]
     ) -> None:
-        batch = _find(created_batches, "1003")
+        batch = _find(created_batches, "3")
         consume_qty = 300.0
         expected_remaining = batch["volume_liters"] - consume_qty
 
@@ -265,8 +269,8 @@ class TestConsumption:
     def test_cumulative_consumptions_reduce_available_liters(
         self, http: httpx.Client, created_batches: list[dict[str, Any]]
     ) -> None:
-        """Three sequential consumptions from batch 1004 (600 L) should leave 200 L."""
-        batch = _find(created_batches, "1004")
+        """Three sequential consumptions from batch 4 (600 L) should leave 200 L."""
+        batch = _find(created_batches, "4")
         schedule = [
             (150.0, "ORDER-E2E-A"),
             (200.0, "ORDER-E2E-B"),
@@ -286,7 +290,7 @@ class TestConsumption:
         self, http: httpx.Client, created_batches: list[dict[str, Any]]
     ) -> None:
         """GET after cumulative consumption must return the updated available_liters."""
-        batch = _find(created_batches, "1004")
+        batch = _find(created_batches, "4")
         resp = http.get(f"/api/batches/{batch['id']}")
         assert resp.status_code == 200
         # 600 − 150 − 200 − 50 = 200 L
@@ -296,7 +300,7 @@ class TestConsumption:
         self, http: httpx.Client, created_batches: list[dict[str, Any]]
     ) -> None:
         """Consuming more than the available volume must return 409 Conflict."""
-        batch = _find(created_batches, "1004")
+        batch = _find(created_batches, "4")
         resp = http.post(
             f"/api/batches/{batch['id']}/consume",
             json={"qty": 99999.0},
@@ -308,7 +312,7 @@ class TestConsumption:
         self, http: httpx.Client, created_batches: list[dict[str, Any]]
     ) -> None:
         """Consumption response must echo back the supplied order_id."""
-        batch = _find(created_batches, "1005")
+        batch = _find(created_batches, "5")
         order_id = "ORDER-E2E-PROD-999"
         resp = http.post(
             f"/api/batches/{batch['id']}/consume",

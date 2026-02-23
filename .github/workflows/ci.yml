@@ -18,23 +18,8 @@ jobs:
       run:
         working-directory: schreiber-batch-inventory
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: schreiber
-          POSTGRES_PASSWORD: schreiber_dev
-          POSTGRES_DB: schreiber_inventory
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U schreiber"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
-      DATABASE_URL: postgresql://schreiber:schreiber_dev@localhost:5432/schreiber_inventory
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/schreiber_db
 
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +35,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev
 
+      - name: Start services
+        run: docker-compose up -d
+
+      - name: Wait for services
+        run: |
+          timeout 60 sh -c 'until docker-compose ps | grep -q "healthy"; do sleep 2; done'
+          echo "Services are healthy"
+
       - name: Format check (ruff)
         run: uv run ruff format --check .
 
@@ -59,8 +52,13 @@ jobs:
       - name: Type check (ty)
         run: uv run ty check app/
 
-      - name: Run migrations
-        run: uv run alembic upgrade head
-
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
+
+      - name: Show docker-compose logs on failure
+        if: failure()
+        run: docker-compose logs
+
+      - name: Stop services
+        if: always()
+        run: docker-compose down -v
