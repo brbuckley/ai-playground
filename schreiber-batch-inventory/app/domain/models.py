@@ -1,6 +1,6 @@
 """SQLModel database models for Batch and ConsumptionRecord."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -73,11 +73,11 @@ class Batch(SQLModel, table=True):
 
     # Audit Trail
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Record creation timestamp",
     )
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Record last update timestamp",
     )
 
@@ -104,7 +104,7 @@ class Batch(SQLModel, table=True):
     @property
     def is_expired(self) -> bool:
         """Check if batch has passed expiry date."""
-        return datetime.utcnow() > self.expiry_date
+        return datetime.now(timezone.utc) > self.expiry_date
 
     @property
     def is_deleted(self) -> bool:
@@ -180,7 +180,7 @@ class ConsumptionRecord(SQLModel, table=True):
 
     # Audit Trail
     consumed_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         index=True,
         description="Timestamp of consumption",
     )

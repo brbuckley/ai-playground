@@ -52,8 +52,8 @@ def create_batch(
 
 @router.get("/near-expiry", response_model=BatchListResponse)
 def get_near_expiry_batches(
+    session: Annotated[Session, Depends(get_session)],
     n_days: int = Query(..., ge=1, le=365, description="Look-ahead window in days"),
-    session: Annotated[Session, Depends(get_session)] = None,
 ) -> BatchListResponse:
     """Get batches nearing expiry with available volume."""
     service = BatchService(session)
@@ -67,9 +67,9 @@ def get_near_expiry_batches(
 
 @router.get("/", response_model=BatchListResponse)
 def list_batches(
+    session: Annotated[Session, Depends(get_session)],
     skip: int = Query(0, ge=0, description="Pagination offset"),
     limit: int = Query(100, ge=1, le=1000, description="Page size"),
-    session: Annotated[Session, Depends(get_session)] = None,
 ) -> BatchListResponse:
     """List active (non-deleted) batches."""
     service = BatchService(session)

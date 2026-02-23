@@ -9,7 +9,6 @@ Prerequisites:
 """
 
 import sys
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -62,14 +61,14 @@ def run_simulation(
     num_workers: int = 10,
 ) -> None:
     """Run concurrent consumption simulation."""
-    print(f"\n{'='*60}")
-    print(f"Concurrent Consumption Simulation")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("Concurrent Consumption Simulation")
+    print(f"{'=' * 60}")
     print(f"Batch volume: {volume}L")
     print(f"Qty per request: {qty_per_request}L")
     print(f"Number of workers: {num_workers}")
     print(f"Expected max successes: {int(volume // qty_per_request)}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Create test batch
     print("Creating test batch...")
@@ -97,7 +96,7 @@ def run_simulation(
     failures = [r for r in results if not r["success"]]
     conflicts = [r for r in results if r.get("status_code") == 409]
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Results (completed in {elapsed:.2f}s):")
     print(f"  Successful consumptions: {len(successes)}")
     print(f"  Conflicts (409): {len(conflicts)}")
@@ -112,7 +111,7 @@ def run_simulation(
     response = httpx.get(f"{BASE_URL}/batches/{batch_id}")
     final_batch = response.json()
     print(f"  Available liters (API): {final_batch['available_liters']}L")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 if __name__ == "__main__":

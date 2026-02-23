@@ -2,7 +2,6 @@
 
 from datetime import datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -241,9 +240,7 @@ class TestNearExpiry:
     def test_near_expiry_returns_batches_within_window(self, client: TestClient):
         """Only batches expiring within n_days should be returned."""
         # Batch expiring in 2 days (received 5 days ago, 7-day shelf life)
-        received_soon = (datetime.utcnow() - timedelta(days=5)).strftime(
-            "%Y-%m-%dT%H:%M:%SZ"
-        )
+        received_soon = (datetime.utcnow() - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
         create_batch(
             client,
             {
