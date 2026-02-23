@@ -10,7 +10,7 @@ _test_received = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 _test_date_code = datetime.now(timezone.utc).strftime("%Y%m%d")
 
 VALID_BATCH_DATA = {
-    "batch_code": f"SCH-{_test_date_code}-R001",
+    "batch_code": f"SCH-{_test_date_code}-9001",
     "received_at": _test_received,
     "shelf_life_days": 7,
     "volume_liters": 1000.0,
@@ -94,7 +94,7 @@ class TestCreateReservation:
             client,
             {
                 **VALID_BATCH_DATA,
-                "batch_code": f"SCH-{_test_date_code}-R002",
+                "batch_code": f"SCH-{_test_date_code}-9002",
                 "volume_liters": 100.0,
             },
         )
@@ -110,7 +110,7 @@ class TestCreateReservation:
         """Reserving from deleted batch should return 409."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R003"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9003"},
         )
         client.delete(f"/api/batches/{batch['id']}")
 
@@ -132,7 +132,7 @@ class TestCreateReservation:
             client,
             {
                 **VALID_BATCH_DATA,
-                "batch_code": f"SCH-{_test_date_code}-R004",
+                "batch_code": f"SCH-{_test_date_code}-9004",
                 "received_at": past,
                 "shelf_life_days": 3,
             },
@@ -147,7 +147,7 @@ class TestCreateReservation:
         """Reservation with zero or negative qty should return 422."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R005"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9005"},
         )
         response = client.post(
             f"/api/batches/{batch['id']}/reserve",
@@ -163,7 +163,7 @@ class TestListReservations:
         """Batch with no reservations should return empty list."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R010"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9010"},
         )
         response = client.get(f"/api/batches/{batch['id']}/reservations")
 
@@ -176,7 +176,7 @@ class TestListReservations:
         """Should return all reservations for the batch."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R011"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9011"},
         )
         client.post(
             f"/api/batches/{batch['id']}/reserve",
@@ -205,7 +205,7 @@ class TestReleaseReservation:
         """Happy path: release an active reservation."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R020"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9020"},
         )
         create_resp = client.post(
             f"/api/batches/{batch['id']}/reserve",
@@ -224,7 +224,7 @@ class TestReleaseReservation:
         """Releasing a reservation should restore free_liters on the batch."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R021"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9021"},
         )
         create_resp = client.post(
             f"/api/batches/{batch['id']}/reserve",
@@ -248,7 +248,7 @@ class TestReleaseReservation:
         """Releasing an already-released reservation should return 409."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R022"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9022"},
         )
         create_resp = client.post(
             f"/api/batches/{batch['id']}/reserve",
@@ -268,7 +268,7 @@ class TestReleaseReservation:
         """Releasing a non-existent reservation should return 404."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R023"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9023"},
         )
         response = client.delete(f"/api/batches/{batch['id']}/reservations/9999")
         assert response.status_code == 404
@@ -286,7 +286,7 @@ class TestBatchResponseWithReservations:
         """BatchResponse should include reserved_liters and free_liters."""
         batch = create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R030"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9030"},
         )
 
         batch_data = client.get(f"/api/batches/{batch['id']}").json()
@@ -299,7 +299,7 @@ class TestBatchResponseWithReservations:
         """List endpoint should also include reserved_liters and free_liters."""
         create_batch(
             client,
-            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-R031"},
+            {**VALID_BATCH_DATA, "batch_code": f"SCH-{_test_date_code}-9031"},
         )
         response = client.get("/api/batches/")
         batches = response.json()["batches"]
@@ -314,7 +314,7 @@ class TestBatchResponseWithReservations:
             client,
             {
                 **VALID_BATCH_DATA,
-                "batch_code": f"SCH-{_test_date_code}-R032",
+                "batch_code": f"SCH-{_test_date_code}-9032",
                 "volume_liters": 1000.0,
             },
         )

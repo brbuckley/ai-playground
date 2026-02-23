@@ -28,7 +28,7 @@ def format_output(data: object) -> None:
     print(json.dumps(data, indent=2, default=str))
 
 
-def handle_response(response: httpx.Response) -> dict:  # type: ignore[type-arg]
+def handle_response(response: httpx.Response) -> dict:
     """Return the JSON body or exit with an error message."""
     try:
         body = response.json()
@@ -42,7 +42,7 @@ def handle_response(response: httpx.Response) -> dict:  # type: ignore[type-arg]
         )
         sys.exit(1)
 
-    return body  # type: ignore[return-value]
+    return body
 
 
 def cmd_list(args: argparse.Namespace, base_url: str) -> None:
