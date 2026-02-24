@@ -1,12 +1,9 @@
-"""SQLModel database models for Batch and ConsumptionRecord."""
+"""SQLModel database models for Batch, ConsumptionRecord, and BatchReservation."""
 
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from sqlmodel import Field, Relationship, SQLModel
-
-if TYPE_CHECKING:
-    pass
 
 
 class Batch(SQLModel, table=True):
@@ -86,6 +83,10 @@ class Batch(SQLModel, table=True):
         back_populates="batch",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+    reservations: list["BatchReservation"] = Relationship(
+        back_populates="batch",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
     @property
     def available_liters(self) -> float:
@@ -100,6 +101,28 @@ class Batch(SQLModel, table=True):
 
         total_consumed = sum(record.qty for record in self.consumption_records)
         return max(0.0, self.volume_liters - total_consumed)
+
+    @property
+    def reserved_liters(self) -> float:
+        """
+        Calculate total liters currently under active reservations.
+
+        Returns:
+            Sum of reserved_qty for all non-released reservations.
+        """
+        if not self.reservations:
+            return 0.0
+        return sum(r.reserved_qty for r in self.reservations if r.released_at is None)
+
+    @property
+    def free_liters(self) -> float:
+        """
+        Calculate liters available for new consumption or reservation.
+
+        Returns:
+            available_liters minus reserved_liters (clamped to zero).
+        """
+        return max(0.0, self.available_liters - self.reserved_liters)
 
     @property
     def is_expired(self) -> bool:
@@ -191,3 +214,56 @@ class ConsumptionRecord(SQLModel, table=True):
 
     # Relationships
     batch: Optional[Batch] = Relationship(back_populates="consumption_records")
+
+
+class BatchReservation(SQLModel, table=True):
+    """
+    Represents a liters reservation on a batch for production planning.
+
+    A reservation is a soft-lock on volume: it signals that the liters are
+    earmarked for an upcoming production run without actually consuming them.
+    Reservations can be released (e.g. if the run is cancelled) or left active
+    until a matching consumption is recorded.
+    """
+
+    __tablename__ = "batch_reservations"
+
+    # Primary Key
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    # Foreign Key
+    batch_id: int = Field(
+        foreign_key="batches.id",
+        index=True,
+        description="Reference to parent batch",
+    )
+
+    # Reservation Details
+    reserved_qty: float = Field(
+        gt=0,
+        description="Quantity reserved in liters",
+    )
+    purpose: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="Human-readable reason for the reservation (e.g. production run ID)",
+    )
+
+    # Audit Trail
+    reserved_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Timestamp when reservation was created",
+    )
+    released_at: Optional[datetime] = Field(
+        default=None,
+        index=True,
+        description="Timestamp when reservation was released (NULL if still active)",
+    )
+
+    # Relationships
+    batch: Optional[Batch] = Relationship(back_populates="reservations")
+
+    @property
+    def is_active(self) -> bool:
+        """Return True if the reservation has not been released."""
+        return self.released_at is None

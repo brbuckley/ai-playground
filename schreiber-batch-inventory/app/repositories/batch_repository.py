@@ -11,8 +11,10 @@ from app.domain.exceptions import (
     BatchNotFoundError,
     DuplicateBatchCodeError,
     InsufficientVolumeError,
+    ReservationAlreadyReleasedError,
+    ReservationNotFoundError,
 )
-from app.domain.models import Batch, ConsumptionRecord
+from app.domain.models import Batch, BatchReservation, ConsumptionRecord
 
 
 class BatchRepository:
@@ -208,3 +210,124 @@ class BatchRepository:
         self.session.refresh(batch)
 
         return batch
+
+    # ------------------------------------------------------------------ #
+    # Reservation operations                                               #
+    # ------------------------------------------------------------------ #
+
+    def create_reservation(
+        self,
+        batch_id: int,
+        reserved_qty: float,
+        purpose: str | None = None,
+    ) -> BatchReservation:
+        """
+        Reserve liters from a batch for production planning (pessimistic locking).
+
+        Uses SELECT FOR UPDATE to prevent over-reservation under concurrency.
+
+        Args:
+            batch_id: Batch to reserve from
+            reserved_qty: Liters to reserve
+            purpose: Human-readable reason for the reservation
+
+        Returns:
+            Created BatchReservation
+
+        Raises:
+            BatchNotFoundError: Batch doesn't exist
+            BatchDeletedError: Batch is soft-deleted
+            BatchExpiredError: Batch has expired
+            InsufficientVolumeError: Not enough free (unreserved) volume
+        """
+        # Acquire pessimistic lock on batch
+        statement = select(Batch).where(Batch.id == batch_id).with_for_update()
+        batch = self.session.exec(statement).first()
+
+        if not batch:
+            raise BatchNotFoundError(batch_id=batch_id)
+
+        if batch.is_deleted:
+            raise BatchDeletedError(batch_id=batch_id)
+
+        if batch.is_expired:
+            raise BatchExpiredError(batch_id=batch_id, expiry_date=batch.expiry_date)
+
+        free = batch.free_liters
+        if reserved_qty > free:
+            raise InsufficientVolumeError(
+                batch_id=batch_id,
+                available=free,
+                requested=reserved_qty,
+            )
+
+        reservation = BatchReservation(
+            batch_id=batch_id,
+            reserved_qty=reserved_qty,
+            purpose=purpose,
+        )
+        self.session.add(reservation)
+        self.session.commit()
+        self.session.refresh(reservation)
+
+        return reservation
+
+    def get_reservation_by_id(self, reservation_id: int) -> BatchReservation:
+        """
+        Retrieve a reservation by its ID.
+
+        Args:
+            reservation_id: Reservation ID
+
+        Returns:
+            BatchReservation instance
+
+        Raises:
+            ReservationNotFoundError: Reservation doesn't exist
+        """
+        reservation = self.session.get(BatchReservation, reservation_id)
+        if not reservation:
+            raise ReservationNotFoundError(reservation_id=reservation_id)
+        return reservation
+
+    def list_reservations(self, batch_id: int) -> List[BatchReservation]:
+        """
+        List all reservations for a batch (active and released).
+
+        Args:
+            batch_id: Batch ID
+
+        Returns:
+            List of BatchReservation records ordered by reserved_at desc
+        """
+        statement = (
+            select(BatchReservation)
+            .where(BatchReservation.batch_id == batch_id)
+            .order_by(BatchReservation.reserved_at.desc())  # type: ignore[union-attr]
+        )
+        return list(self.session.exec(statement).all())
+
+    def release_reservation(self, reservation_id: int) -> BatchReservation:
+        """
+        Release an active reservation.
+
+        Args:
+            reservation_id: Reservation to release
+
+        Returns:
+            Updated BatchReservation
+
+        Raises:
+            ReservationNotFoundError: Reservation doesn't exist
+            ReservationAlreadyReleasedError: Reservation already released
+        """
+        reservation = self.get_reservation_by_id(reservation_id)
+
+        if not reservation.is_active:
+            raise ReservationAlreadyReleasedError(reservation_id=reservation_id)
+
+        reservation.released_at = datetime.now(timezone.utc)
+        self.session.commit()
+        self.session.refresh(reservation)
+
+        return reservation

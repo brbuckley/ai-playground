@@ -12,6 +12,8 @@ from app.domain.exceptions import (
     BatchNotFoundError,
     DuplicateBatchCodeError,
     InsufficientVolumeError,
+    ReservationAlreadyReleasedError,
+    ReservationNotFoundError,
 )
 from app.domain.services.batch_service import BatchService
 from app.schemas.batch import (
@@ -21,6 +23,7 @@ from app.schemas.batch import (
     ConsumeRequest,
     ConsumeResponse,
 )
+from app.schemas.reservation import ReservationListResponse, ReservationResponse, ReserveRequest
 
 router = APIRouter(prefix="/batches", tags=["batches"])
 
@@ -155,6 +158,97 @@ def delete_batch(
             detail=str(e),
         )
     except BatchDeletedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+
+
+# ------------------------------------------------------------------ #
+# Reservation endpoints                                               #
+# ------------------------------------------------------------------ #
+
+
+@router.post(
+    "/{batch_id}/reserve",
+    response_model=ReservationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_reservation(
+    batch_id: int,
+    reserve_data: ReserveRequest,
+    session: Annotated[Session, Depends(get_session)],
+) -> ReservationResponse:
+    """Reserve liters from a batch for production planning."""
+    service = BatchService(session)
+
+    try:
+        reservation = service.create_reservation(
+            batch_id=batch_id,
+            reserved_qty=reserve_data.reserved_qty,
+            purpose=reserve_data.purpose,
+        )
+        return ReservationResponse.model_validate(reservation)
+
+    except BatchNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except (BatchDeletedError, BatchExpiredError, InsufficientVolumeError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e),
+        )
+
+
+@router.get("/{batch_id}/reservations", response_model=ReservationListResponse)
+def list_reservations(
+    batch_id: int,
+    session: Annotated[Session, Depends(get_session)],
+) -> ReservationListResponse:
+    """List all reservations for a batch (active and released)."""
+    service = BatchService(session)
+
+    try:
+        reservations = service.list_reservations(batch_id=batch_id)
+        return ReservationListResponse(
+            reservations=[ReservationResponse.model_validate(r) for r in reservations],
+            total=len(reservations),
+        )
+
+    except BatchNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.delete(
+    "/{batch_id}/reservations/{reservation_id}",
+    response_model=ReservationResponse,
+)
+def release_reservation(
+    batch_id: int,
+    reservation_id: int,
+    session: Annotated[Session, Depends(get_session)],
+) -> ReservationResponse:
+    """Release an active reservation."""
+    service = BatchService(session)
+
+    try:
+        reservation = service.release_reservation(
+            batch_id=batch_id,
+            reservation_id=reservation_id,
+        )
+        return ReservationResponse.model_validate(reservation)
+
+    except (BatchNotFoundError, ReservationNotFoundError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    except ReservationAlreadyReleasedError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e),

@@ -5,7 +5,8 @@ from typing import List
 
 from sqlmodel import Session
 
-from app.domain.models import Batch, ConsumptionRecord
+from app.domain.exceptions import ReservationNotFoundError
+from app.domain.models import Batch, BatchReservation, ConsumptionRecord
 from app.repositories.batch_repository import BatchRepository
 
 
@@ -73,3 +74,40 @@ class BatchService:
     def delete_batch(self, batch_id: int) -> Batch:
         """Soft-delete a batch."""
         return self.repository.soft_delete(batch_id)
+
+    # ------------------------------------------------------------------ #
+    # Reservation operations                                               #
+    # ------------------------------------------------------------------ #
+
+    def create_reservation(
+        self,
+        batch_id: int,
+        reserved_qty: float,
+        purpose: str | None = None,
+    ) -> BatchReservation:
+        """Reserve liters from a batch for production planning."""
+        return self.repository.create_reservation(
+            batch_id=batch_id,
+            reserved_qty=reserved_qty,
+            purpose=purpose,
+        )
+
+    def list_reservations(self, batch_id: int) -> List[BatchReservation]:
+        """List all reservations for a batch."""
+        # Ensure the batch exists (raises BatchNotFoundError if not)
+        self.repository.get_by_id(batch_id)
+        return self.repository.list_reservations(batch_id=batch_id)
+
+    def release_reservation(
+        self,
+        batch_id: int,
+        reservation_id: int,
+    ) -> BatchReservation:
+        """Release an active reservation."""
+        # Ensure the batch exists
+        self.repository.get_by_id(batch_id)
+        # Verify the reservation actually belongs to this batch
+        reservation = self.repository.get_reservation_by_id(reservation_id)
+        if reservation.batch_id != batch_id:
+            raise ReservationNotFoundError(reservation_id=reservation_id)
+        return self.repository.release_reservation(reservation_id=reservation_id)
